@@ -1,0 +1,1 @@
+# cross-vault-auth-plugin
