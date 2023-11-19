@@ -32,17 +32,6 @@ var (
 	typeAssertionFailed = errors.New("type assertion failed")
 )
 
-type crossVaultAuthBackendConfig struct {
-	// Cluster stores the address of the target Vault cluster
-	Cluster string `json:"cluster"`
-
-	// CACert stores CA certificate to validate target Vault cluster's cert
-	CACert string `json:"ca_cert"`
-
-	// InsecureSkipTLS defines whether to fall back to insecure connection
-	InsecureSkipTLS bool `json:"insecure_skip_tls"`
-}
-
 type crossVaultAuthBackend struct {
 	*framework.Backend
 
@@ -99,8 +88,12 @@ func backend() *crossVaultAuthBackend {
 	}
 
 	b.Backend = &framework.Backend{
-		Help:  backendHelp,
-		Paths: framework.PathAppend(),
+		Help: backendHelp,
+		Paths: framework.PathAppend(
+			[]*framework.Path{
+				b.pathConfig(),
+			},
+		),
 		PathsSpecial: &logical.Paths{
 			Unauthenticated: []string{
 				loginPath,
@@ -148,12 +141,12 @@ func (b *crossVaultAuthBackend) config(ctx context.Context, storage logical.Stor
 		return nil, nil
 	}
 
-	cfg := &crossVaultAuthBackendConfig{}
-	if err = json.Unmarshal(raw.Value, cfg); err != nil {
+	config := &crossVaultAuthBackendConfig{}
+	if err = json.Unmarshal(raw.Value, config); err != nil {
 		return nil, err
 	}
 
-	return cfg, nil
+	return config, nil
 }
 
 func (b *crossVaultAuthBackend) runTLSConfigUpdater(
@@ -205,7 +198,7 @@ func (b *crossVaultAuthBackend) runTLSConfigUpdater(
 	return nil
 }
 
-func (b *crossVaultAuthBackend) updateTLSConfig(cfg *crossVaultAuthBackendConfig) error {
+func (b *crossVaultAuthBackend) updateTLSConfig(config *crossVaultAuthBackendConfig) error {
 	var caCertBytes []byte
 
 	b.tlsMu.Lock()
@@ -215,8 +208,8 @@ func (b *crossVaultAuthBackend) updateTLSConfig(cfg *crossVaultAuthBackendConfig
 		return err
 	}
 
-	if cfg.CACert != "" {
-		caCertBytes = []byte(cfg.CACert)
+	if config.CACert != "" {
+		caCertBytes = []byte(config.CACert)
 	}
 
 	certPool := x509.NewCertPool()
@@ -234,6 +227,7 @@ func (b *crossVaultAuthBackend) updateTLSConfig(cfg *crossVaultAuthBackendConfig
 			return typeAssertionFailed
 		}
 		b.tlsConfig.RootCAs = certPool
+		b.tlsConfig.InsecureSkipVerify = config.InsecureSkipVerify
 		transport.TLSClientConfig = b.tlsConfig
 	}
 
