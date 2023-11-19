@@ -21,3 +21,5 @@
 go.work
 
 .idea
+cross-vault-auth-plugin
+vault
