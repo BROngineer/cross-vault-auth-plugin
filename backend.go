@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ const (
 
 	loginPath  = "login"
 	configPath = "config"
+	rolePath   = "role"
 
 	tlsUpdateTicker = time.Second * 30
 )
@@ -92,6 +95,8 @@ func backend() *crossVaultAuthBackend {
 		Paths: framework.PathAppend(
 			[]*framework.Path{
 				b.pathConfig(),
+				b.pathRole(),
+				b.pathRoleList(),
 			},
 		),
 		PathsSpecial: &logical.Paths{
@@ -249,4 +254,30 @@ func updateTLSConfig(ctx context.Context, b *crossVaultAuthBackend, storage logi
 		return err
 	}
 	return nil
+}
+
+func (b *crossVaultAuthBackend) role(
+	ctx context.Context,
+	storage logical.Storage,
+	name string,
+) (*crossVaultAuthRoleEntry, error) {
+	var (
+		raw *logical.StorageEntry
+		err error
+	)
+
+	raw, err = storage.Get(ctx, fmt.Sprintf("%s/%s", rolePath, strings.ToLower(name)))
+	if err != nil {
+		return nil, err
+	}
+	if raw == nil {
+		return nil, nil
+	}
+
+	role := &crossVaultAuthRoleEntry{}
+	if err = json.Unmarshal(raw.Value, role); err != nil {
+		return nil, err
+	}
+
+	return role, nil
 }

@@ -12,8 +12,8 @@ const (
 	configHelpDescription = `
 The Cross Vault Auth Backend validates token, issued by the target 
 Vault cluster using token lookup capability. It ensures, that the 
-token is valid and matches provided role configuration: entity name, 
-auth method and it's mount path.`
+token is valid and matches provided role configuration: entity ID 
+and it's metadata.`
 )
 
 type crossVaultAuthBackendConfig struct {
