@@ -24,7 +24,8 @@ const (
 	configPath = "config"
 	rolePath   = "role"
 
-	tlsUpdateTicker = time.Second * 30
+	tlsUpdateTicker    = time.Second * 30
+	tokenLookupTimeout = time.Second * 30
 )
 
 var (
@@ -97,6 +98,7 @@ func backend() *crossVaultAuthBackend {
 				b.pathConfig(),
 				b.pathRole(),
 				b.pathRoleList(),
+				b.pathLogin(),
 			},
 		),
 		PathsSpecial: &logical.Paths{
