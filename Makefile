@@ -18,4 +18,7 @@ clean:
 fmt:
 	go fmt $$(go list ./...)
 
+lint:
+	golangci-lint run ./...
+
 .PHONY: build clean fmt start enable

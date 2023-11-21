@@ -76,7 +76,7 @@ func validateHTTPClient(b *crossVaultAuthBackend) error {
 	return nil
 }
 
-// Factory returns new instance of crossVaultAuthBackend as logical.Backend
+// Factory returns new instance of crossVaultAuthBackend as logical.Backend.
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	b := backend()
 	if err := b.Setup(ctx, conf); err != nil {

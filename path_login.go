@@ -49,11 +49,11 @@ func (b *crossVaultAuthBackend) login(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	roleName := data.Get("role").(string)
+	roleName, _ := data.Get("role").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("'role' field is mandatory"), nil
 	}
-	token := data.Get("token").(string)
+	token, _ := data.Get("token").(string)
 	if token == "" {
 		return logical.ErrorResponse("'token' field is mandatory"), nil
 	}

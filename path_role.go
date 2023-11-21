@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+type contextKey string
+
 const (
 	roleListHelpSynopsis    = "List registered roles."
 	roleListHelpDescription = "The list contains roles' names."
@@ -22,6 +24,8 @@ A registered role is required to authenticate with this backend.
 The role's configuration provides data which is used to ensure that 
 token provided for authentication and issued by the another Vault 
 cluster is valid for authentication.`
+
+	roleNameCtxKey contextKey = "roleName"
 )
 
 var (
@@ -163,7 +167,7 @@ func (b *crossVaultAuthBackend) roleWrite(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	roleName := data.Get("name").(string)
+	roleName, _ := data.Get("name").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("role name must be specified"), nil
 	}
@@ -183,7 +187,7 @@ func (b *crossVaultAuthBackend) roleWrite(
 		role = &crossVaultAuthRoleEntry{}
 		fallthrough
 	case req.Operation == logical.UpdateOperation, role != nil:
-		roleUpdCtx := context.WithValue(ctx, "roleName", roleName)
+		roleUpdCtx := context.WithValue(ctx, roleNameCtxKey, roleName)
 		resp, err = b.roleEntryUpdate(roleUpdCtx, req, data, role)
 	default:
 		if role == nil {
@@ -202,7 +206,7 @@ func (b *crossVaultAuthBackend) roleRead(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	roleName := data.Get("name").(string)
+	roleName, _ := data.Get("name").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("role name must be specified"), nil
 	}
@@ -236,7 +240,7 @@ func (b *crossVaultAuthBackend) roleDelete(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
-	roleName := data.Get("name").(string)
+	roleName, _ := data.Get("name").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("role name must be specified"), nil
 	}
@@ -261,7 +265,7 @@ func (b *crossVaultAuthBackend) roleEntryUpdate(
 		resp  *logical.Response
 		err   error
 	)
-	roleName := ctx.Value("roleName").(string)
+	roleName, _ := ctx.Value(roleNameCtxKey).(string)
 
 	if err = role.ParseTokenFields(req, data); err != nil {
 		return logical.ErrorResponse(err.Error()), logical.ErrInvalidRequest
@@ -280,19 +284,19 @@ func (b *crossVaultAuthBackend) roleEntryUpdate(
 	if req.Operation == logical.CreateOperation && !ok {
 		return logical.ErrorResponse("entity_id must be provided"), nil
 	} else if ok {
-		role.EntityID = entityID.(string)
+		role.EntityID, _ = entityID.(string)
 	}
 
 	entityMeta, ok := data.GetOk("entity_meta")
 	if ok {
-		role.EntityMeta = entityMeta.(map[string]string)
+		role.EntityMeta, _ = entityMeta.(map[string]string)
 	}
 
 	strictMetaVerify, ok := data.GetOk("strict_meta_verify")
 	if req.Operation == logical.CreateOperation && !ok {
-		role.StrictMetaVerify = data.GetDefaultOrZero("strict_meta_verify").(bool)
+		role.StrictMetaVerify, _ = data.GetDefaultOrZero("strict_meta_verify").(bool)
 	} else if ok {
-		role.StrictMetaVerify = strictMetaVerify.(bool)
+		role.StrictMetaVerify, _ = strictMetaVerify.(bool)
 	}
 
 	entry, err = logical.StorageEntryJSON(fmt.Sprintf("%s/%s", rolePath, strings.ToLower(roleName)), role)

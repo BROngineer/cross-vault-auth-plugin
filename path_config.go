@@ -101,12 +101,12 @@ func (b *crossVaultAuthBackend) pathConfigWrite(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	cluster := data.Get("cluster").(string)
+	cluster, _ := data.Get("cluster").(string)
 	if cluster == "" {
 		return logical.ErrorResponse("cluster must be provided"), nil
 	}
-	caCert := data.Get("ca_cert").(string)
-	insecureSkipVerify := data.Get("insecure_skip_verify").(bool)
+	caCert, _ := data.Get("ca_cert").(string)
+	insecureSkipVerify, _ := data.Get("insecure_skip_verify").(bool)
 
 	config := &crossVaultAuthBackendConfig{
 		Cluster:            cluster,

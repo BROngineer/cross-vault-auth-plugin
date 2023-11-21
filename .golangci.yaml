@@ -1,0 +1,49 @@
+run:
+  timeout: 5m
+  skip-dirs:
+    - cmd
+    - vault
+
+linters:
+  enable:
+    - ineffassign
+    - misspell
+    - gocyclo
+    - goimports
+    - govet
+    - gofmt
+    - goimports
+    - godot
+    - predeclared
+    - unconvert
+    - whitespace
+    - unused
+    - unconvert
+    - dogsled
+    - misspell
+    - paralleltest
+    - prealloc
+    - importas
+    - asciicheck
+    - stylecheck
+    - durationcheck
+    - unparam
+    - goprintffuncname
+    - forcetypeassert
+
+severity:
+  default-severity: error
+
+linters-settings:
+  revive:
+    severity: error
+    rules:
+      - name: exported
+      - name: if-return
+        disabled: true
+
+#issues:
+#  exclude-rules:
+#    - path: _gen\.go
+#      linters:
+#        - typecheck
