@@ -24,8 +24,8 @@ const (
 	configPath = "config"
 	rolePath   = "role"
 
-	tlsUpdateTicker    = time.Second * 30
-	tokenLookupTimeout = time.Second * 30
+	tlsUpdateTicker = time.Second * 30
+	requestTimeout  = time.Second * 30
 )
 
 var (

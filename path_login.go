@@ -14,11 +14,14 @@ import (
 const (
 	loginHelpSynopsis    = "Login with the provided role"
 	loginHelpDescription = `
-During Cross Vault authentication process, backend will validate provided token 
-at the peered Vault cluster and issue new token in case validation will be passed.
+During Cross Vault authentication process, backend will validate provided token or token
+accessor at the peered Vault cluster and issue new token in case validation will be passed.
 `
 
-	tokenLookupPath = "auth/token/lookup"
+	tokenLookupPath    = "auth/token/lookup"
+	tokenPayloadKey    = "token"
+	accessorLookupPath = "auth/token/lookup-accessor"
+	accessorPayloadKey = "accessor"
 )
 
 func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
@@ -29,9 +32,15 @@ func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
 				Type:        framework.TypeString,
 				Description: "Name of the role to login. The field is mandatory.",
 			},
-			"token": {
-				Type:        framework.TypeString,
-				Description: "Token issued by the peered Vault cluster. The field is mandatory.",
+			"secret": {
+				Type: framework.TypeString,
+				Description: "Token issued by the peered Vault cluster or token accessor if " +
+					"corresponding flag set to true. The field is mandatory.",
+			},
+			"accessor": {
+				Type: framework.TypeBool,
+				Description: "Flag defines whether provided token is the token accessor " +
+					"or token itself. Default value is 'false'",
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -76,14 +85,23 @@ func (b *crossVaultAuthBackend) login(
 	req *logical.Request,
 	data *framework.FieldData,
 ) (*logical.Response, error) {
+	var (
+		resp *api.Secret
+		err  error
+	)
+
+	lookupPath := tokenLookupPath
+	lookupPayloadKey := tokenPayloadKey
+
 	roleName, _ := data.Get("role").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("'role' field is mandatory"), nil
 	}
-	token, _ := data.Get("token").(string)
-	if token == "" {
-		return logical.ErrorResponse("'token' field is mandatory"), nil
+	secret, _ := data.Get("secret").(string)
+	if secret == "" {
+		return logical.ErrorResponse("'secret' field is mandatory"), nil
 	}
+	isAccessor, _ := data.Get("accessor").(bool)
 
 	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
@@ -101,7 +119,7 @@ func (b *crossVaultAuthBackend) login(
 	// here I assume that there is VAULT_TOKEN env variable is already set.
 	// this assumption comes from the very concrete use case - when current
 	// vault cluster uses transit unseal option, so it is already authenticated
-	// in the target vault cluster.
+	// in the target vault cluster via vault agent.
 	// todo: extend backend with configuration options providing authentication
 	//   config which will be used to authenticate in target cluster
 	vc, err := api.NewClient(b.newConfig(config))
@@ -109,9 +127,14 @@ func (b *crossVaultAuthBackend) login(
 		return nil, err
 	}
 
-	requestCtx, cancel := context.WithTimeout(ctx, tokenLookupTimeout)
+	requestCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
-	resp, err := vc.Logical().WriteWithContext(requestCtx, tokenLookupPath, map[string]interface{}{"token": token})
+
+	if isAccessor {
+		lookupPath = accessorLookupPath
+		lookupPayloadKey = accessorPayloadKey
+	}
+	resp, err = vc.Logical().WriteWithContext(requestCtx, lookupPath, map[string]interface{}{lookupPayloadKey: secret})
 	if err != nil {
 		return nil, err
 	}
