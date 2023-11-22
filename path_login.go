@@ -38,10 +38,37 @@ func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.login,
 			},
+			logical.AliasLookaheadOperation: &framework.PathOperation{
+				Callback: b.loginAliasLookahead,
+			},
 		},
 		HelpSynopsis:    loginHelpSynopsis,
 		HelpDescription: loginHelpDescription,
 	}
+}
+
+func (b *crossVaultAuthBackend) loginAliasLookahead(
+	ctx context.Context,
+	req *logical.Request,
+	data *framework.FieldData,
+) (*logical.Response, error) {
+	roleName, _ := data.Get("role").(string)
+	if roleName == "" {
+		return nil, fmt.Errorf("'role' field is mandatory")
+	}
+
+	role, err := b.role(ctx, req.Storage, roleName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &logical.Response{
+		Auth: &logical.Auth{
+			Alias: &logical.Alias{
+				Name: role.RoleID,
+			},
+		},
+	}, nil
 }
 
 func (b *crossVaultAuthBackend) login(
@@ -96,10 +123,16 @@ func (b *crossVaultAuthBackend) login(
 		return logical.ErrorResponse("role validation failed"), nil
 	}
 
+	metadata := map[string]string{"role": roleName, "mapped_entity_id": role.EntityID}
+
 	auth := &logical.Auth{
 		InternalData: map[string]interface{}{"role": roleName},
 		DisplayName:  fmt.Sprintf("%s-%s", roleName, role.EntityID),
-		Metadata:     map[string]string{"role": roleName, "mapped_entity_id": role.EntityID},
+		Metadata:     metadata,
+		Alias: &logical.Alias{
+			Name:     role.RoleID,
+			Metadata: metadata,
+		},
 	}
 	role.PopulateTokenAuth(auth)
 

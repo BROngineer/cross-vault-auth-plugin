@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/tokenutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -34,6 +35,9 @@ var (
 
 type crossVaultAuthRoleEntry struct {
 	tokenutil.TokenParams
+
+	// RoleID is a unique role identifier
+	RoleID string `json:"role_id" mapstructure:"role_id" structs:"role_id"`
 
 	// EntityID stores uuid of the entity, token being validated was issued for
 	EntityID string `json:"entity_id" mapstructure:"entity_id" structs:"entity_id"`
@@ -278,6 +282,13 @@ func (b *crossVaultAuthBackend) roleEntryUpdate(
 	if role.TokenMaxTTL > b.System().MaxLeaseTTL() {
 		resp = &logical.Response{}
 		resp.AddWarning("token_max_ttl is greater than system or backend mount's max TTL, issued tokens' TTL will be truncated")
+	}
+
+	if req.Operation == logical.CreateOperation {
+		role.RoleID, err = uuid.GenerateUUID()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	entityID, ok := data.GetOk("entity_id")

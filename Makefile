@@ -6,6 +6,9 @@ all: fmt build start
 build:
 	GOOS=${OS} GOARCH="${ARCH}" go build -o vault/plugins/cva-plugin cmd/cross-vault-auth-plugin/main.go
 
+build-linux:
+	GOOS=linux GOARCH="arm64" go build -o vault/plugins/cva-plugin cmd/cross-vault-auth-plugin/main.go
+
 start:
 	vault server -dev -dev-root-token-id=root -dev-plugin-dir=./vault/plugins
 
