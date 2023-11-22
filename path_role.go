@@ -106,6 +106,12 @@ func (b *crossVaultAuthBackend) pathRole() *framework.Path {
 				Description: `Flag defines whether provided entity metadata must strictly match with 
 metadata stored for target entity in target Vault cluster`,
 			},
+			"token_ttl": {
+				Type: framework.TypeDurationSecond,
+			},
+			"token_policies": {
+				Type: framework.TypeCommaStringSlice,
+			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.CreateOperation: &framework.PathOperation{
