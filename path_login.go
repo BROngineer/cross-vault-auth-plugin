@@ -42,6 +42,10 @@ func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
 				Description: "Flag defines whether provided token is the token accessor " +
 					"or token itself. Default value is 'false'",
 			},
+			// todo: instead of field "accessor" add field "method" with possible values:
+			//	 - wrapped-token-full: "secret" field should contains wrapping toking with full token data obtained by '-wrap-ttl=N write auth/.../login'
+			//	 - wrapped-token-only: "secret" field should contain wrapping token with target token itself wrapped using cubbyhole secret engine
+			//	 - wrapped-accessor-only: "secret" field should contain wrapping token with target token accessor wrapped using cubbyhole secret engine
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
@@ -158,6 +162,7 @@ func (b *crossVaultAuthBackend) login(
 		},
 	}
 	role.PopulateTokenAuth(auth)
+	auth.Renewable = false
 
 	return &logical.Response{Auth: auth}, nil
 }
