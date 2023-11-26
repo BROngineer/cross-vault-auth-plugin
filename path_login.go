@@ -24,6 +24,12 @@ accessor at the peered Vault cluster and issue new token in case validation will
 	accessorPayloadKey = "accessor"
 )
 
+const (
+	WrappedTokenFull    = "token-full"
+	WrappedTokenOnly    = "token-only"
+	WrappedAccessorOnly = "accessor-only"
+)
+
 func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
 	return &framework.Path{
 		Pattern: "login$",
@@ -37,15 +43,15 @@ func (b *crossVaultAuthBackend) pathLogin() *framework.Path {
 				Description: "Token issued by the peered Vault cluster or token accessor if " +
 					"corresponding flag set to true. The field is mandatory.",
 			},
-			"accessor": {
-				Type: framework.TypeBool,
-				Description: "Flag defines whether provided token is the token accessor " +
-					"or token itself. Default value is 'false'",
+			// instead of field "accessor" add field "method" with possible values:
+			// - token-full: "secret" field should contain wrapping toking with full token data obtained by '-wrap-ttl=N write auth/.../login'
+			// - token-only: "secret" field should contain wrapping token with target token itself wrapped using cubbyhole secret engine
+			// - accessor-only: "secret" field should contain wrapping token with target token accessor wrapped using cubbyhole secret engine
+			"method": {
+				Type:        framework.TypeString,
+				Default:     WrappedTokenFull,
+				Description: "Field defines how to operate with provided secret",
 			},
-			// todo: instead of field "accessor" add field "method" with possible values:
-			//	 - wrapped-token-full: "secret" field should contains wrapping toking with full token data obtained by '-wrap-ttl=N write auth/.../login'
-			//	 - wrapped-token-only: "secret" field should contain wrapping token with target token itself wrapped using cubbyhole secret engine
-			//	 - wrapped-accessor-only: "secret" field should contain wrapping token with target token accessor wrapped using cubbyhole secret engine
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
@@ -90,12 +96,9 @@ func (b *crossVaultAuthBackend) login(
 	data *framework.FieldData,
 ) (*logical.Response, error) {
 	var (
-		resp *api.Secret
-		err  error
+		validated bool
+		err       error
 	)
-
-	lookupPath := tokenLookupPath
-	lookupPayloadKey := tokenPayloadKey
 
 	roleName, _ := data.Get("role").(string)
 	if roleName == "" {
@@ -105,7 +108,7 @@ func (b *crossVaultAuthBackend) login(
 	if secret == "" {
 		return logical.ErrorResponse("'secret' field is mandatory"), nil
 	}
-	isAccessor, _ := data.Get("accessor").(bool)
+	method, _ := data.Get("method").(string)
 
 	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
@@ -124,25 +127,20 @@ func (b *crossVaultAuthBackend) login(
 	// this assumption comes from the very concrete use case - when current
 	// vault cluster uses transit unseal option, so it is already authenticated
 	// in the target vault cluster via vault agent.
-	// todo: extend backend with configuration options providing authentication
-	//   config which will be used to authenticate in target cluster
-	vc, err := api.NewClient(b.newConfig(config))
+	b.vc, err = api.NewClient(b.newConfig(config))
 	if err != nil {
 		return nil, err
 	}
+	b.vc.SetNamespace(config.Namespace)
 
-	requestCtx, cancel := context.WithTimeout(ctx, requestTimeout)
-	defer cancel()
+	b.ctx, b.cancel = context.WithTimeout(ctx, requestTimeout)
+	defer b.cancel()
 
-	if isAccessor {
-		lookupPath = accessorLookupPath
-		lookupPayloadKey = accessorPayloadKey
-	}
-	resp, err = vc.Logical().WriteWithContext(requestCtx, lookupPath, map[string]interface{}{lookupPayloadKey: secret})
+	secret, err = b.unwrapSecret(method, secret)
 	if err != nil {
 		return nil, err
 	}
-	validated, err := b.validateResponse(resp, role)
+	validated, err = b.validateSecret(role, method, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +158,7 @@ func (b *crossVaultAuthBackend) login(
 			Name:     role.RoleID,
 			Metadata: metadata,
 		},
+		Orphan: true,
 	}
 	role.PopulateTokenAuth(auth)
 	auth.Renewable = false
@@ -174,13 +173,52 @@ func (b *crossVaultAuthBackend) newConfig(config *crossVaultAuthBackendConfig) *
 	return vaultClientConfig
 }
 
-func (b *crossVaultAuthBackend) validateResponse(body *api.Secret, role *crossVaultAuthRoleEntry) (bool, error) {
-	entityID := body.Data["entity_id"]
+func (b *crossVaultAuthBackend) unwrapSecret(method, secret string) (string, error) {
+	resp, err := b.vc.Logical().UnwrapWithContext(b.ctx, secret)
+	if err != nil {
+		return "", err
+	}
+	switch method {
+	case WrappedTokenFull:
+		return resp.Auth.ClientToken, nil
+	case WrappedTokenOnly:
+		token, ok := resp.Data["secret"]
+		if !ok {
+			return "", tokenNotFoundInWrappedData
+		}
+		return token.(string), nil
+	case WrappedAccessorOnly:
+		accessor, ok := resp.Data["secret"]
+		if !ok {
+			return "", accessorNotFoundInWrappedData
+		}
+		return accessor.(string), nil
+	default:
+		return "", unknownLoginMethod
+	}
+}
+
+func (b *crossVaultAuthBackend) validateSecret(
+	role *crossVaultAuthRoleEntry,
+	method, secret string,
+) (bool, error) {
+	lookupPath := tokenLookupPath
+	lookupPayloadKey := tokenPayloadKey
+	if method == WrappedAccessorOnly {
+		lookupPath = accessorLookupPath
+		lookupPayloadKey = accessorPayloadKey
+	}
+	resp, err := b.vc.Logical().WriteWithContext(b.ctx, lookupPath, map[string]interface{}{lookupPayloadKey: secret})
+	if err != nil {
+		return false, err
+	}
+
+	entityID := resp.Data["entity_id"]
 	if entityID != role.EntityID {
 		return false, nil
 	}
 
-	raw, err := json.Marshal(body.Data["meta"])
+	raw, err := json.Marshal(resp.Data["meta"])
 	if err != nil {
 		return false, err
 	}

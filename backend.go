@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/pkg/errors"
@@ -31,9 +32,12 @@ const (
 var (
 	backendHelp = "The Cross-Vault Auth Backend allows authentication through another Vault cluster"
 
-	httpClientIsNotSet  = errors.New("HTTP client is not set")
-	tlsConfigIsNotSet   = errors.New("TLS config is not set")
-	typeAssertionFailed = errors.New("type assertion failed")
+	httpClientIsNotSet            = errors.New("HTTP client is not set")
+	tlsConfigIsNotSet             = errors.New("TLS config is not set")
+	typeAssertionFailed           = errors.New("type assertion failed")
+	unknownLoginMethod            = errors.New("unknown login method")
+	tokenNotFoundInWrappedData    = errors.New("token not found in wrapped data, expect data stored in key 'secret'")
+	accessorNotFoundInWrappedData = errors.New("accessor not found in wrapped data, expect data stored in key 'secret'")
 )
 
 type crossVaultAuthBackend struct {
@@ -56,6 +60,14 @@ type crossVaultAuthBackend struct {
 
 	// tlsMu provides thread safety for TLS configuration updates operations
 	tlsMu sync.RWMutex
+
+	// ctx is the context used for requests to upstream Vault cluster
+	ctx context.Context
+	// cancel function for ctx
+	cancel context.CancelFunc
+
+	// vc is the vault client instance
+	vc *api.Client
 }
 
 func defaultHTTPClient() *http.Client {

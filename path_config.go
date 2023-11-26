@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	rootNamespace = "root"
+
 	configHelpSynopsis    = "Configures target Vault cluster API information"
 	configHelpDescription = `
 The Cross Vault Auth Backend validates token, issued by the target 
@@ -19,6 +21,9 @@ and it's metadata.`
 type crossVaultAuthBackendConfig struct {
 	// Cluster stores the address of the target Vault cluster
 	Cluster string `json:"cluster"`
+
+	// Namespace defines the namespace to send requests to. Enterprise only
+	Namespace string `json:"namespace"`
 
 	// CACert stores CA certificate to validate target Vault cluster's cert
 	CACert string `json:"ca_cert"`
@@ -35,6 +40,11 @@ func (b *crossVaultAuthBackend) pathConfig() *framework.Path {
 				Type: framework.TypeString,
 				Description: `Cluster must contain value of a Vault cluster endpoint
 					should be a hostname, host:port pair, or a URL`,
+			},
+			"namespace": {
+				Type:        framework.TypeString,
+				Default:     rootNamespace,
+				Description: "Enterprise only. Defines the namespace to send requests to.",
 			},
 			"ca_cert": {
 				Type:        framework.TypeString,
@@ -82,6 +92,7 @@ func (b *crossVaultAuthBackend) pathConfigRead(
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"cluster":              config.Cluster,
+			"namespace":            config.Namespace,
 			"ca_cert":              config.CACert,
 			"insecure_skip_verify": config.InsecureSkipVerify,
 		},
@@ -105,11 +116,13 @@ func (b *crossVaultAuthBackend) pathConfigWrite(
 	if cluster == "" {
 		return logical.ErrorResponse("cluster must be provided"), nil
 	}
+	namespace, _ := data.Get("namespace").(string)
 	caCert, _ := data.Get("ca_cert").(string)
 	insecureSkipVerify, _ := data.Get("insecure_skip_verify").(bool)
 
 	config := &crossVaultAuthBackendConfig{
 		Cluster:            cluster,
+		Namespace:          namespace,
 		CACert:             caCert,
 		InsecureSkipVerify: insecureSkipVerify,
 	}
