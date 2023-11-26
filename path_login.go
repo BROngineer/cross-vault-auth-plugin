@@ -186,13 +186,15 @@ func (b *crossVaultAuthBackend) unwrapSecret(method, secret string) (string, err
 		if !ok {
 			return "", tokenNotFoundInWrappedData
 		}
-		return token.(string), nil
+		result, _ := token.(string)
+		return result, nil
 	case WrappedAccessorOnly:
 		accessor, ok := resp.Data["secret"]
 		if !ok {
 			return "", accessorNotFoundInWrappedData
 		}
-		return accessor.(string), nil
+		result, _ := accessor.(string)
+		return result, nil
 	default:
 		return "", unknownLoginMethod
 	}

@@ -18,13 +18,14 @@ That's how I come to the idea of cross-vault authentication:
 
 Considering all of the above, I'd decided to prove the concept, that I could use token issued by one Vault cluster 
 to authenticate in another Vault cluster. Well, honestly, I can't. The real workflow is the following:
-1. Get token/token accessor from the "issuing" Vault;
-2. Pass it to the "validating" Vault;
-3. "Validating" Vault sends lookup request to "issuing" Vault;
-4. "Validating" Vault compares response data with defined parameters (for now it is the entity_id and entity metadata);
-5. "Validating" Vault issues token with defined policies, ttl and whatnot;
-6. Use issued token to login to "validating" Vault;
-7. PROFIT!
+1. Authenticate in "leader" Vault;
+2. Pass wrapped token/accessor to the "follower" Vault;
+3. "follower" Vault sends unwrap request to "leader" Vault;
+4. "follower" Vault sends lookup request to "leader" Vault for unwrapped token/accessor;
+5. "follower" Vault compares response data with defined parameters (for now it is the entity_id and entity metadata);
+6. "follower" Vault issues token with defined policies, ttl and whatnot;
+7. Use issued token to log in to "follower" Vault;
+8. PROFIT!
 
 ### Installation
 
@@ -38,7 +39,7 @@ vault auth enable -path=some-path cva-plugin
 # Success! Enabled cva-plugin auth method at: cva/
 ```
 
-##### Production mode (it's not ready for production)
+##### Production mode (it's not ready for production, imho)
 
 1. Add `plugin_directory` entry to vault server configuration
 2. Reload config if needed or stop/start the server (keep in mind, in case server will be stopped unsealing will be 
@@ -54,9 +55,10 @@ vault plugin register -sha256=... auth cva-plugin
 - `auth/{mount}/config`  
 Available operations: `read`, `write -f`  
 `write -f` parameters:
-  - `cluster` (string)
+  - `cluster` (string) __[Mandatory]__
+  - `namespace` (string) __[Enterprise only; default: root]__
   - `ca_cert` (string)
-  - `insecure_skip_verify` (bool)
+  - `insecure_skip_verify` (bool) __[Default: false]__
 
 
 - `auth/{mount}/role`  
@@ -66,10 +68,9 @@ Available operations: `list`
 - `auth/{mount}/role/{name}`  
 Available operations: `read`, `write`  
 `write` parameters:
-  - `name` (string)
-  - `entity_id` (string)
+  - `entity_id` (string) __[Mandatory]__
   - `entity_meta` (comma-separated "key"="value")
-  - `strict_meta_verify` (bool)
+  - `strict_meta_verify` (bool) __[Default: false]__
   - `token_ttl` (go parsable duration: 5s, 10m, 1h etc)
   - `token_policies` (comma-separated strings)
 
@@ -77,9 +78,9 @@ Available operations: `read`, `write`
 - `auth/{mount}/login`  
 Available operations: `write`  
 `write` parameters:
-  - `role` (string)
-  - `secret` (string)
-  - `accessor` (bool)
+  - `role` (string) __[Mandatory]__
+  - `secret` (string) __[Mandatory]__
+  - `method` (string) __[Values: token-full, token-only, accessor-only]__
 
 ### Usage
 
@@ -87,11 +88,18 @@ Falling back to ["Why it was created"](#why-it-was-created) section, I assume th
 plugin will be enabled, has already been authenticated in the "upstream" Vault cluster. So the `VAULT_TOKEN` 
 environment variable should be already set.
 
-To be able to authenticate in target Vault cluster using __cross-vault-auth__ plugin, it is required to provide the 
-following data for plugin and role configuration:
-1. __[MANDATORY]__ API endpoint of the "upstream" cluster, which will be the issuer of the initial token;
-2. __[OPTIONAL]__ CA certificate to validate server certificate of the endpoint ;
-3. __[MANDATORY]__ Entity ID which issued token refers to;
+To be able to authenticate in target Vault cluster using __cross-vault-auth__ plugin, the least required data for 
+plugin and role configuration:
+1. API endpoint of the "upstream" cluster, which will be the issuer of the initial token (CA certificate if needed);
+2. Entity ID which issued token refers to;
+
+---
+__! Pay attention ! Secret provided for login must be wrapped !__  
+Plugin backend expects, that the secret, provided for login is one of three options:  
+a. wrapped full token data, got by using response wrapping feature via `-wrap-ttl=...` option;  
+b. token itself or token accessor stored in cubbyhole with the key name equals to `secret` and wrapped on read;  
+So there are three values for mandatory `method` parameter: `token-full`, `token-only` and `accessor-only`
+---
 
 ```shell
 vault auth enable -path=cva cva-plugin
@@ -104,7 +112,7 @@ vault write auth/cva/role/sample \
   token_ttl=5m
   token_policies=sample-policy
 # Success! Data written to: auth/cva/role/sample
-vault write auth/cva/login role=sample secret={TOKEN}
+vault write auth/cva/login role=sample secret={TOKEN} method=token-full
 # Key                            Value
 # ---                            -----
 # token                          hvs.CAESIIkOvtZiU70VBDbAG3EDyK3nbGyuiXFMPo1GEKu62ZqnGh4KHGh2cy53VUJ0OUJuMDM4ZU80cWlHN0RTY1N0Tzk
@@ -118,9 +126,3 @@ vault write auth/cva/login role=sample secret={TOKEN}
 # token_meta_role                sample
 ```
 Now issued token can be used to log in to cluster.
-
-### TODOs: 
-
-1. __TESTS__
-2. ~~Login using token accessor (add optional `-accessor` boolean field)~~
-3. Login using wrapped token (add optional `-wrapped` boolean field)

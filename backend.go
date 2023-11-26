@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	pluginVersion = "v0.0.1"
+
 	minTLSVersion = tls.VersionTLS12
 
 	loginPath  = "login"
@@ -124,6 +126,7 @@ func backend() *crossVaultAuthBackend {
 		InitializeFunc: b.initialize,
 		Clean:          b.cleanup,
 		BackendType:    logical.TypeCredential,
+		RunningVersion: pluginVersion,
 	}
 
 	return b
