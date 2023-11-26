@@ -94,11 +94,13 @@ plugin and role configuration:
 2. Entity ID which issued token refers to;
 
 ---
-__! Pay attention ! Secret provided for login must be wrapped !__  
+
+__❗ Pay attention:  secret provided for login must be wrapped ❗__  
 Plugin backend expects, that the secret, provided for login is one of three options:  
 a. wrapped full token data, got by using response wrapping feature via `-wrap-ttl=...` option;  
 b. token itself or token accessor stored in cubbyhole with the key name equals to `secret` and wrapped on read;  
 So there are three values for mandatory `method` parameter: `token-full`, `token-only` and `accessor-only`
+
 ---
 
 ```shell
