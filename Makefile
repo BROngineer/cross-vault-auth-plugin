@@ -1,27 +1,38 @@
 OS=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
 
-all: fmt build start
-
+.PHONY: build
 build:
 	GOOS=${OS} GOARCH="${ARCH}" go build -o vault/plugins/cva-plugin cmd/cross-vault-auth-plugin/main.go
 
+.PHONY: build-linux
 build-linux:
 	GOOS=linux GOARCH="arm64" go build -o vault/plugins/cva-plugin cmd/cross-vault-auth-plugin/main.go
 
-start:
-	vault server -dev -dev-root-token-id=root -dev-plugin-dir=./vault/plugins
-
-enable:
-	vault auth enable -path=cva-auth cva-plugin
-
+.PHONY: clean
 clean:
 	rm -f ./vault/plugins/cva-plugin
 
+.PHONY: fmt
 fmt:
-	go fmt $$(go list ./...)
+	go fmt ./...
 
-lint:
+.PHONY: vet
+vet:
+	go vet ./...
+
+.PHONY: lint
+lint: vet fmt golangci-lint
 	golangci-lint run ./...
 
-.PHONY: build clean fmt start enable
+LOCAL_BIN ?= $(shell pwd)/bin
+$(LOCAL_BIN):
+	mkdir -p $(LOCAL_BIN)
+
+GOLANGCI_LINT ?= $(LOCAL_BIN)/golangci-lint
+GOLANGCI_LINT_VERSION ?= v1.55.2
+
+.PHONY: golangci-lint
+golangci-lint:
+	test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) --version | grep -q $(GOLANGCI_LINT_VERSION) || \
+	GOBIN=$(LOCAL_BIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
