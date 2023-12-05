@@ -1,4 +1,6 @@
-## Cross-Vault authentication plugin
+# Cross-Vault authentication plugin
+
+[![Lint Golang Codebase](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/lint.yml/badge.svg)](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/lint.yml)
 
 ### Why it was created
 
