@@ -21,6 +21,10 @@ fmt:
 vet:
 	go vet ./...
 
+.PHONY: test
+test:
+	go test -cover ./...
+
 .PHONY: lint
 lint: vet fmt golangci-lint
 	golangci-lint run ./...
