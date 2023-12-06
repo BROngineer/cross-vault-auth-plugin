@@ -48,8 +48,10 @@ func TestConfig_Write(t *testing.T) {
 		},
 	}
 
-	for name, tCase := range tests {
+	for n, tc := range tests {
+		name, tCase := n, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			b, storage := getBackend(t)
 			req := &logical.Request{
 				Operation: logical.UpdateOperation,
@@ -111,8 +113,10 @@ func TestConfig_Read(t *testing.T) {
 		},
 	}
 
-	for name, tCase := range tests {
+	for n, tc := range tests {
+		name, tCase := n, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			b, storage := getBackend(t)
 			req := &logical.Request{
 				Operation: logical.UpdateOperation,
