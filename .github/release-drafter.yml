@@ -42,6 +42,9 @@ autolabeler:
   - label: 'dependencies'
     branch:
       - '/deps\/.+/'
+  - label: 'chore'
+    branch:
+      - '/chore\/.+/'
 template: |
   ## Changes
   $CHANGES
