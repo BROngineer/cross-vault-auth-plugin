@@ -23,13 +23,13 @@ That's how I come to the idea of cross-vault authentication:
 
 Considering all of the above, I'd decided to prove the concept, that I could use token issued by one Vault cluster 
 to authenticate in another Vault cluster. Well, honestly, I can't. The real workflow is the following:
-1. Authenticate in "leader" Vault;
-2. Pass wrapped token/accessor to the "follower" Vault;
-3. "follower" Vault sends unwrap request to "leader" Vault;
-4. "follower" Vault sends lookup request to "leader" Vault for unwrapped token/accessor;
-5. "follower" Vault compares response data with defined parameters (for now it is the entity_id and entity metadata);
-6. "follower" Vault issues token with defined policies, ttl and whatnot;
-7. Use issued token to log in to "follower" Vault;
+1. Authenticate in central Vault;
+2. Pass wrapped token/accessor to the central Vault;
+3. k8s Vault sends unwrap request to central Vault;
+4. k8s Vault sends lookup request to central Vault for unwrapped token/accessor;
+5. k8s Vault compares response data with defined parameters (for now it is the entity_id and entity metadata);
+6. k8s Vault issues token with defined policies, ttl and whatnot;
+7. Use issued token to log in to k8s Vault;
 8. PROFIT!
 
 ### Installation
