@@ -1,8 +1,7 @@
 # Cross-Vault authentication plugin
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/brongineer/cross-vault-auth-plugin)](https://goreportcard.com/report/github.com/brongineer/cross-vault-auth-plugin)
-[![Test Codebase](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/test.yml)
-[![Lint Golang Codebase](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/lint.yml/badge.svg)](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/lint.yml)
+[![CI](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/pipeline.yml/badge.svg)](https://github.com/BROngineer/cross-vault-auth-plugin/actions/workflows/pipeline.yml)
 [![GitHub License](https://img.shields.io/static/v1?label=License&message=MIT&color=blue)](LICENSE)
 
 ### Why it was created
