@@ -27,7 +27,7 @@ test:
 
 .PHONY: lint
 lint: vet fmt golangci-lint
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 LOCAL_BIN ?= $(shell pwd)/bin
 $(LOCAL_BIN):
