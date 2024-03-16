@@ -34,7 +34,7 @@ $(LOCAL_BIN):
 	mkdir -p $(LOCAL_BIN)
 
 GOLANGCI_LINT ?= $(LOCAL_BIN)/golangci-lint
-GOLANGCI_LINT_VERSION ?= v1.55.2
+GOLANGCI_LINT_VERSION ?= v1.56.2
 
 .PHONY: golangci-lint
 golangci-lint:
