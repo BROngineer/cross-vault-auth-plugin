@@ -1,12 +1,10 @@
-name: Lint Golang Codebase
+name: CI
 
 on:
   pull_request_target:
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
+
 jobs:
-  golangci:
+  go-lint:
     name: lint
     runs-on: ubuntu-latest
     steps:
@@ -18,5 +16,18 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.55.2
+          version: v1.56.2
           args: --timeout 15m
+
+  go-test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - name: run tests
+        run: go test -cover ./...
